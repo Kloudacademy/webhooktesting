@@ -1,0 +1,33 @@
+#!/bin/bash
+
+echo "=============================Checking For Existing AMI's================================"
+
+AMI=$(aws ec2 describe-images --region us-east-1 --filters "Name=tag:Name,Values=xxxxxxxxxx" --owner xxxxxxxxxxxx --query 'Images[*]' | grep ami | awk {'print $2'} | tr -d '", ' )
+
+tempAMI=( $AMI )
+
+if [ $tempAMI ]
+then
+ for currentAMI in "${tempAMI[@]}"
+ do
+ echo deleting $currentAMI
+ aws ec2 deregister-image --image-id $currentAMI --region us-east-1
+ echo Successfully deleted $currentAMI
+
+done
+else
+ echo "No AMI to delete"
+fi
+
+
+
+previousSnapshotId=$(aws ec2 describe-images --region ${REGION} --owners self --filters "Name=tag:type,Values=${image_type}" "Name=tag:product_version,Values=${product_version}" --query 'Images[0].{Id:BlockDeviceMappings[0].Ebs.SnapshotId}' | jq .Id -r)
+
+And then, I check if the result of the "packer build ..." command is 0, then I delete previous snapshot by ID.
+
+packer build -var "source_ami=${latestCentOS}" -var "region=${REGION}" -var-file=variables.json ami-centos-with-product.json
+  
+  if [ "$?" = "0" ] && [ "$previousSnapshotId" != "null" ]; then
+    echo "Deleting previous AMI snapshot. Id: ${previousSnapshotId}"
+    aws ec2 delete-snapshot --region ${REGION} --snapshot-id ${previousSnapshotId}
+  fi
